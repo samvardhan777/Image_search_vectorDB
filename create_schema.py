@@ -3,44 +3,48 @@ import cv2
 import uuid
 import base64
 import clear_all
+import weaviate
 
-DATA_DIR = "test_sample"
-IMAGE_DIM = (100, 100)
+WEAVIATE_URL = os.getenv('WEAVIATE_URL')
+if not WEAVIATE_URL:
+    WEAVIATE_URL = 'http://localhost:8080'
+
+print(WEAVIATE_URL, flush=True)
+
+client = weaviate.Client(WEAVIATE_URL)
 
 
-
-def create_schema(client):
-    class_obj = {
-        "class": "Stamp",
-        "description": "",
-        "moduleConfig": {
-            "img2vec-neural": {
-                "imageFields": [
-                    "image"
-                ]
-            }
+schema = {
+    "class": "Stamp",
+    "description": "",
+    "moduleConfig": {
+        "img2vec-neural": {
+            "imageFields": [
+                "image"
+            ]
+        }
+    },
+    "properties": [
+        {
+            "dataType": [
+                "blob"
+            ],
+            "description": "Image",
+            "name": "image"
         },
-        "properties": [
-            {
-                "dataType": [
-                    "blob"
-                ],
-                "description": "Image",
-                "name": "image"
-            },
-            {
-                "dataType": [
-                    "string"
-                ],
-                "description": "",
-                "name": "path"
-            }
-            
-        ],
-        "vectorIndexType": "hnsw",
-        "vectorizer": "img2vec-neural"
-    }
+        {
+            "dataType": [
+                "string"
+            ],
+            "description": "",
+            "name": "path"
+        }
+        
+    ],
+    "vectorIndexType": "hnsw",
+    "vectorizer": "img2vec-neural"
+}
     
-    client.schema.create_class(class_obj)
+client.schema.create_class(schema)
     
-    print("The schema has been defined.")
+print("The schema has been defined.")

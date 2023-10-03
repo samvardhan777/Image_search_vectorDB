@@ -1,5 +1,4 @@
 import os
-from create_schema import create_schema
 import os
 import cv2
 import uuid
@@ -28,8 +27,6 @@ if not WEAVIATE_URL:
 
 
 client = weaviate.Client(WEAVIATE_URL)
-
-create_schema(client)
 
 def prepare_image(file_path: str):
     """Read image from file_path
@@ -65,29 +62,9 @@ def insert_data(client):
                 "image": b64_string,
             }
             r = client.data_object.create(data_properties, "Stamp", str(uuid.uuid4()))
-            print(fp, r)    
+            client.batch.add_data_object(data_properties, "Stamp")
+            print(fp)   
 
 insert_data(client)    
 
-
-def weaviate_img_search(img_str):
-
-    sourceImage = {"image": img_str}
-
-    weaviate_results = client.query.get(
-       "Stamp", ["path", "_additional { certainty }"]
-        ).with_near_image(
-            sourceImage, encode=False
-        ).with_limit(1).do()
-
-    return weaviate_results["data"]["Get"]
-
-
-for fn in os.listdir(TEST_DIR):
-    fp = os.path.join(TEST_DIR, fn)  # Corrected path to use TEST_DIR
-    img = prepare_image(fp)
-    embedding = create_embedding(img)
-    if embedding is not None:
-        b64_string = base64.b64encode(embedding[1]).decode('utf-8')
-print(weaviate_img_search(b64_string))
 

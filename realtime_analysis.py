@@ -1,12 +1,9 @@
 import os
-from create_schema import create_schema
-import os
 import cv2
 import uuid
 import base64
 import ipyplot
 import weaviate
-import cv2
 import numpy as np
 from facenet_pytorch import MTCNN, InceptionResnetV1
 import torch 
@@ -18,6 +15,9 @@ model = InceptionResnetV1(pretrained='vggface2').eval()
 TEST_DIR = "test"
 IMAGE_DIM = (100, 100)
 client = weaviate.Client("http://localhost:8080")
+frame_skip_factor = 2 
+cap = cv2.VideoCapture(0)
+frame_counter = 0
 
 schema = client.schema.get()
 print(schema)
@@ -56,11 +56,41 @@ def weaviate_img_search(img_str):
 
     return weaviate_results["data"]["Get"]
 
+while True:
+    ret, frame = cap.read()
+    frame_counter += 1
 
-for fn in os.listdir(TEST_DIR):
-    fp = os.path.join(TEST_DIR, fn)  # Corrected path to use TEST_DIR
-    img = prepare_image(fp)
-    embedding = create_embedding(img)
-    if embedding is not None:
-        b64_string = base64.b64encode(embedding[1]).decode('utf-8')
-print(weaviate_img_search(b64_string))
+    if frame_counter % frame_skip_factor == 0:
+        boxes, _ = mtcnn.detect(frame)
+        if boxes is not None:
+            for box in boxes:
+                x, y, w, h = [int(i) for i in box]
+                face = frame[y:y+h, x:x+w]
+                cv2.rectangle(frame, (x, y), (w, h), (0, 255, 0), 2) 
+                embedding = create_embedding(face)
+                if embedding is not None:
+                    b64_string = base64.b64encode(embedding[1]).decode('utf-8')
+                    result = weaviate_img_search(b64_string)
+                    path=result['Stamp'][0]['path']
+                    file_path = os.path.join('test_sample', path)
+                    if os.path.exists(file_path):
+                        print("The file exists.")
+                        max_image = cv2.imread(file_path)
+                        max_image = cv2.resize(max_image, (100, 100))
+                        cv2.putText(frame, f'Celebrity: {path}', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                        frame[0:100, frame.shape[1]-100:frame.shape[1]] = max_image
+                    else:
+                        print("The file does not exist.")
+                        max_image = np.zeros((100, 100, 3), dtype=np.uint8)
+                        cv2.putText(max_image, 'No Image Found', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                        frame[0:100, frame.shape[1]-100:frame.shape[1]] = max_image
+
+        cv2.imshow('Real-Time Face Recognition', frame)
+
+    if cv2.waitKey(1) & 0xFF == 27:
+        break
+
+
+
+
+
