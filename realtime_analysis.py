@@ -8,6 +8,7 @@ import numpy as np
 from facenet_pytorch import MTCNN, InceptionResnetV1
 import torch 
 import faiss
+
 mtcnn = MTCNN()
 dimension = 512 
 index = faiss.IndexFlatL2(dimension)
@@ -56,6 +57,8 @@ def weaviate_img_search(img_str):
 
     return weaviate_results["data"]["Get"]
 
+matched_celebrity_image = None
+
 while True:
     ret, frame = cap.read()
     frame_counter += 1
@@ -71,7 +74,7 @@ while True:
                 if embedding is not None:
                     b64_string = base64.b64encode(embedding[1]).decode('utf-8')
                     result = weaviate_img_search(b64_string)
-                    path=result['Stamp'][0]['path']
+                    path = result['Stamp'][0]['path']
                     file_path = os.path.join('test_sample', path)
                     if os.path.exists(file_path):
                         print("The file exists.")
@@ -80,18 +83,18 @@ while True:
                         cv2.putText(frame, f'Celebrity: {path}', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                         max_image = cv2.resize(max_image, (200, 200))
                         frame[0:200, frame.shape[1]-200:frame.shape[1]] = max_image
+                        matched_celebrity_image = max_image
                     else:
                         print("The file does not exist.")
                         max_image = np.zeros((200, 200, 3), dtype=np.uint8)
                         cv2.putText(max_image, 'No Image Found', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                         frame[0:200, 0:200] = max_image
+                        matched_celebrity_image = None
+
+        if matched_celebrity_image is not None:
+            frame[0:200, frame.shape[1]-200:frame.shape[1]] = matched_celebrity_image
 
         cv2.imshow('Real-Time Face Recognition', frame)
 
     if cv2.waitKey(1) & 0xFF == 27:
         break
-
-
-
-
-
