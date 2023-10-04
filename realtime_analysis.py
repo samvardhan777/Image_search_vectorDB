@@ -76,14 +76,15 @@ while True:
                     if os.path.exists(file_path):
                         print("The file exists.")
                         max_image = cv2.imread(file_path)
-                        max_image = cv2.resize(max_image, (100, 100))
+                        max_image = cv2.resize(max_image, (200, 200))
                         cv2.putText(frame, f'Celebrity: {path}', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                        frame[0:100, frame.shape[1]-100:frame.shape[1]] = max_image
+                        max_image = cv2.resize(max_image, (200, 200))
+                        frame[0:200, frame.shape[1]-200:frame.shape[1]] = max_image
                     else:
                         print("The file does not exist.")
-                        max_image = np.zeros((100, 100, 3), dtype=np.uint8)
+                        max_image = np.zeros((200, 200, 3), dtype=np.uint8)
                         cv2.putText(max_image, 'No Image Found', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-                        frame[0:100, frame.shape[1]-100:frame.shape[1]] = max_image
+                        frame[0:200, 0:200] = max_image
 
         cv2.imshow('Real-Time Face Recognition', frame)
 
