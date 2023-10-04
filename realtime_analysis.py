@@ -34,7 +34,7 @@ def prepare_image(file_path: str):
 
 def create_embedding(image):
     boxes, _ = mtcnn.detect(image)
-    if boxes is not None:
+    if boxes is not None and len(boxes) > 0:
         for box in boxes:
             x, y, w, h = [int(i) for i in box]
             face = image[y:y+h, x:x+w]
@@ -43,7 +43,10 @@ def create_embedding(image):
             face = cv2.resize(face, (160, 160))
             face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
             jpg_img = cv2.imencode('.jpg', face)
-            return jpg_img
+            b64_string = base64.b64encode(jpg_img[1]).decode('utf-8')           
+            return b64_string
+    return None
+
 
 def weaviate_img_search(img_str):
 
@@ -54,7 +57,7 @@ def weaviate_img_search(img_str):
         ).with_near_image(
             sourceImage, encode=False
         ).with_limit(1).do()
-
+    print("searching")
     return weaviate_results["data"]["Get"]
 
 matched_celebrity_image = None
@@ -62,18 +65,18 @@ matched_celebrity_image = None
 while True:
     ret, frame = cap.read()
     frame_counter += 1
-
+    text_detection_message = "" 
     if frame_counter % frame_skip_factor == 0:
         boxes, _ = mtcnn.detect(frame)
-        if boxes is not None:
+        print("Detected boxes:", boxes)
+        if boxes is not None and len(boxes) > 0:
             for box in boxes:
                 x, y, w, h = [int(i) for i in box]
                 face = frame[y:y+h, x:x+w]
                 cv2.rectangle(frame, (x, y), (w, h), (0, 255, 0), 2) 
                 embedding = create_embedding(face)
                 if embedding is not None:
-                    b64_string = base64.b64encode(embedding[1]).decode('utf-8')
-                    result = weaviate_img_search(b64_string)
+                    result = weaviate_img_search(embedding)
                     path = result['Stamp'][0]['path']
                     file_path = os.path.join('test_sample', path)
                     if os.path.exists(file_path):
@@ -90,10 +93,11 @@ while True:
                         cv2.putText(max_image, 'No Image Found', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                         frame[0:200, 0:200] = max_image
                         matched_celebrity_image = None
-
-        if matched_celebrity_image is not None:
-            frame[0:200, frame.shape[1]-200:frame.shape[1]] = matched_celebrity_image
-
+            if matched_celebrity_image is not None:
+                frame[0:200, frame.shape[1]-200:frame.shape[1]] = matched_celebrity_image
+        else:
+            text_detection_message = "No face detected"
+        cv2.putText(frame, text_detection_message, (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         cv2.imshow('Real-Time Face Recognition', frame)
 
     if cv2.waitKey(1) & 0xFF == 27:
